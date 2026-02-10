@@ -3,6 +3,8 @@ import HomeClient from './HomeClient';
 import { directus } from '@/lib/directus';
 import { readItems } from '@directus/sdk';
 
+export const dynamic = 'force-dynamic';
+
 type PageData = {
   id: string | number;
   title: string;
