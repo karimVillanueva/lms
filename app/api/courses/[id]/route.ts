@@ -1,10 +1,11 @@
 // app/api/courses/[id]/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function PATCH(
-    req: Request,
-    { params }: { params: { id: string } }
+    req: NextRequest,
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const body = await req.json();
 
     const url = process.env.DIRECTUS_URL || process.env.NEXT_PUBLIC_DIRECTUS_URL;
@@ -21,8 +22,9 @@ export async function PATCH(
     const payload: Record<string, any> = {};
     if (typeof body.title === 'string') payload.title = body.title;
     if (typeof body.description === 'string') payload.description = body.description;
+    if (typeof body.summary === 'string') payload.summary = body.summary;
 
-    const res = await fetch(`${url}/items/courses/${params.id}`, {
+    const res = await fetch(`${url}/items/courses/${id}`, {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
