@@ -2,13 +2,7 @@
 
 import { setAttr } from '@/lib/visual-editor';
 import type { HTMLAttributes } from 'react';
-
-type Course = {
-    id: string;
-    title: string | null;
-    description: string | null;
-    summary: string | null;
-};
+import type { Course } from '@/lib/directus';
 
 const attr = (value: unknown): HTMLAttributes<HTMLElement> =>
     value && typeof value === 'object' ? (value as any) : {};
