@@ -1,12 +1,6 @@
-// app/dashboard/page.tsx
+export const dynamic = 'force-dynamic';
+
 import { getCourses } from '@/lib/directus';
-
-import { directus } from '@/lib/directus';
-import { readItems } from '@directus/sdk';
-
-const courses = await directus.request(readItems('courses'));
-
-export const dynamic = 'force-dynamic'; // opcional, o usa revalidate
 
 export default async function DashboardPage() {
     const courses = await getCourses();
