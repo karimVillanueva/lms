@@ -3,6 +3,7 @@
 
 import { useRouter } from 'next/navigation';
 import { setAttr } from '@/lib/visual-editor';
+import type { HTMLAttributes } from 'react';
 
 type PageData = {
     id: string | number;
@@ -11,6 +12,10 @@ type PageData = {
     cta_text: string;
     footer_text: string;
 };
+
+// ✅ helper: garantiza que lo que se spread es un objeto
+const attr = (enabled: boolean, value: unknown): HTMLAttributes<HTMLElement> =>
+    enabled && value && typeof value === 'object' ? (value as any) : {};
 
 export default function HomeClient({ page }: { page: PageData }) {
     const router = useRouter();
@@ -25,7 +30,7 @@ export default function HomeClient({ page }: { page: PageData }) {
             {/* LOGO */}
             <h1
                 className="text-5xl md:text-6xl font-extrabold text-indigo-400 drop-shadow-lg opacity-0 animate-[fadeIn_1.2s_ease_forwards]"
-                {...(canEdit ? setAttr({ collection: 'pages', item: page.id, field: 'title' }) : {})}
+                {...attr(canEdit, setAttr({ collection: 'pages', item: page.id, fields: 'title' }))}
             >
                 {page.title}
             </h1>
@@ -34,7 +39,7 @@ export default function HomeClient({ page }: { page: PageData }) {
             <p
                 className="mt-4 text-lg md:text-xl text-gray-300 opacity-0"
                 style={{ animation: 'fadeIn 1.2s ease forwards', animationDelay: '.4s' }}
-                {...(canEdit ? setAttr({ collection: 'pages', item: page.id, field: 'subtitle' }) : {})}
+                {...attr(canEdit, setAttr({ collection: 'pages', item: page.id, fields: 'subtitle' }))}
             >
                 {page.subtitle}
             </p>
@@ -64,7 +69,7 @@ export default function HomeClient({ page }: { page: PageData }) {
                 onClick={handleEnter}
                 className="mt-10 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition opacity-0"
                 style={{ animation: 'fadeIn 1.2s ease forwards', animationDelay: '1.2s' }}
-                {...(canEdit ? setAttr({ collection: 'pages', item: page.id, field: 'cta_text' }) : {})}
+                {...attr(canEdit, setAttr({ collection: 'pages', item: page.id, fields: 'cta_text' }))}
             >
                 {page.cta_text}
             </button>
@@ -72,7 +77,7 @@ export default function HomeClient({ page }: { page: PageData }) {
             {/* FOOTER */}
             <footer
                 className="absolute bottom-4 text-gray-500 text-sm"
-                {...(canEdit ? setAttr({ collection: 'pages', item: page.id, field: 'footer_text' }) : {})}
+                {...attr(canEdit, setAttr({ collection: 'pages', item: page.id, fields: 'footer_text' }))}
             >
                 {page.footer_text}
             </footer>
