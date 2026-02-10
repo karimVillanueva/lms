@@ -1,9 +1,10 @@
-// app/page.tsx (SERVER)
-import HomeClient from './HomeClient';
-import { directus } from '@/lib/directus';
-import { readItems } from '@directus/sdk';
-
+// app/page.tsx
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
+import HomeClient from './HomeClient';
+import { getHomePage } from '@/lib/directus';
 
 type PageData = {
   id: string | number;
@@ -14,17 +15,9 @@ type PageData = {
 };
 
 export default async function HomePage() {
-  const pages = await directus.request(
-    readItems('pages', {
-      filter: { slug: { _eq: 'home' } },
-      limit: 1,
-      fields: ['id', 'title', 'subtitle', 'cta_text', 'footer_text'],
-    })
-  );
+  const raw = await getHomePage();
 
-  const raw = pages?.[0] as Partial<PageData> | undefined;
-
-  const safePage: PageData = {
+  const page: PageData = {
     id: raw?.id ?? 'missing',
     title: raw?.title ?? 'OuhNou Academy',
     subtitle: raw?.subtitle ?? 'Tu plataforma de aprendizaje, reinventada.',
@@ -32,5 +25,5 @@ export default async function HomePage() {
     footer_text: raw?.footer_text ?? '© 2025 OuhNou Academy — Creando futuros.',
   };
 
-  return <HomeClient page={safePage} />;
+  return <HomeClient page={page} />;
 }
