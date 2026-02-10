@@ -19,5 +19,5 @@ export default async function HomePage() {
     footer_text: '© 2025 OuhNou Academy — Creando futuros.',
   };
 
-  return <HomeClient page={page} />;
+  return (<HomeClient page={page} />);
 }
