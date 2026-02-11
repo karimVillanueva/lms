@@ -1,21 +1,26 @@
 // lib/directus.ts
 import { createDirectus, rest, readItems, readItem, staticToken } from '@directus/sdk';
 
-
 type Schema = any;
 
-// URL (server) + fallback a NEXT_PUBLIC
+// =====================================================
+// Configuración cliente Directus
+// =====================================================
+
 const DIRECTUS_URL =
     process.env.DIRECTUS_URL || process.env.NEXT_PUBLIC_DIRECTUS_URL || '';
 
 const token = process.env.DIRECTUS_TOKEN;
 
-// ⚠️ No hagas throw en top-level (rompe builds). Si no hay URL, el cliente queda null.
 export const directus = DIRECTUS_URL
-    ? (token
+    ? token
         ? createDirectus<Schema>(DIRECTUS_URL).with(staticToken(token)).with(rest())
-        : createDirectus<Schema>(DIRECTUS_URL).with(rest()))
+        : createDirectus<Schema>(DIRECTUS_URL).with(rest())
     : null;
+
+// =====================================================
+// Home Page
+// =====================================================
 
 export type HomePageData = {
     id: string | number;
@@ -43,6 +48,10 @@ export async function getHomePage(): Promise<HomePageData | null> {
         return null;
     }
 }
+
+// =====================================================
+// Courses
+// =====================================================
 
 export type Course = {
     id: string;
@@ -77,21 +86,14 @@ export async function getCourses(): Promise<Course[]> {
     }
 }
 
-
-export type ClassItem = {
-    id: string;
-    course: string; // relación a courses
-    price: number;
-    date_created?: string | null;
-    updated_at?: string | null;
-};
-
 export async function getCourseById(id: string): Promise<Course | null> {
     try {
         if (!directus) return null;
 
         const c: any = await directus.request(
-            readItem('courses', id, { fields: ['id', 'title', 'description', 'summary'] })
+            readItem('courses', id, {
+                fields: ['id', 'title', 'description', 'summary'],
+            })
         );
 
         if (!c) return null;
@@ -108,38 +110,34 @@ export async function getCourseById(id: string): Promise<Course | null> {
     }
 }
 
-// R3: la Class “más reciente” por updated_at desc (fallback date_created desc)
-export async function getLatestClassForCourse(courseId: string): Promise<ClassItem | null> {
+// =====================================================
+// Classes (precio real desde Directus)
+// IMPORTANTE: respeta el CASE EXACTO → Course / Price
+// =====================================================
+
+export type ClassItem = {
+    id: string;
+    course: string;
+    price: number;
+    date_created?: string | null;
+    updated_at?: string | null;
+};
+
+/**
+ * R3: obtener la Class más reciente para un Course
+ */
+export async function getLatestClassForCourse(
+    courseId: string
+): Promise<ClassItem | null> {
     try {
         if (!directus) return null;
 
-        // Intento 1: sort por updated_at desc
-        let items: any = await directus.request(
+        const items: any = await directus.request(
             readItems('classes', {
-                filter: { course: { _eq: courseId } },
+                filter: { Course: { _eq: courseId } }, // ✅ CASE correcto
                 limit: 1,
-                sort: ['-updated_at'],
-                fields: ['id', 'course', 'price', 'date_created', 'updated_at'],
-            })
-        );
-
-        if (Array.isArray(items) && items[0]) {
-            return {
-                id: String(items[0].id),
-                course: String(items[0].course),
-                price: Number(items[0].price),
-                date_created: items[0].date_created ?? null,
-                updated_at: items[0].updated_at ?? null,
-            };
-        }
-
-        // Fallback: sort por date_created desc
-        items = await directus.request(
-            readItems('classes', {
-                filter: { course: { _eq: courseId } },
-                limit: 1,
-                sort: ['-date_created'],
-                fields: ['id', 'course', 'price', 'date_created', 'updated_at'],
+                sort: ['-date_updated'], // Directus default
+                fields: ['id', 'Course', 'Price', 'date_created', 'date_updated'],
             })
         );
 
@@ -147,10 +145,10 @@ export async function getLatestClassForCourse(courseId: string): Promise<ClassIt
 
         return {
             id: String(items[0].id),
-            course: String(items[0].course),
-            price: Number(items[0].price),
+            course: String(items[0].Course),
+            price: Number(items[0].Price),
             date_created: items[0].date_created ?? null,
-            updated_at: items[0].updated_at ?? null,
+            updated_at: items[0].date_updated ?? null,
         };
     } catch (e) {
         console.error('getLatestClassForCourse error:', e);
@@ -158,13 +156,16 @@ export async function getLatestClassForCourse(courseId: string): Promise<ClassIt
     }
 }
 
+/**
+ * Obtener Class por id (usado en checkout single)
+ */
 export async function getClassById(classId: string): Promise<ClassItem | null> {
     try {
         if (!directus) return null;
 
         const c: any = await directus.request(
             readItem('classes', String(classId), {
-                fields: ['id', 'course', 'price', 'date_created', 'updated_at'],
+                fields: ['id', 'Course', 'Price', 'date_created', 'date_updated'],
             })
         );
 
@@ -172,13 +173,67 @@ export async function getClassById(classId: string): Promise<ClassItem | null> {
 
         return {
             id: String(c.id),
-            course: String(c.course),
-            price: Number(c.price),
+            course: String(c.Course),
+            price: Number(c.Price),
             date_created: c.date_created ?? null,
-            updated_at: c.updated_at ?? null,
+            updated_at: c.date_updated ?? null,
         };
     } catch (e) {
         console.error('getClassById error:', e);
         return null;
+    }
+}
+
+// =====================================================
+// Enrollments (/me/courses)
+// =====================================================
+
+export type Enrollment = {
+    id: string;
+    email: string;
+    course_id: string;
+    class_id: string;
+    status: string;
+    course_title?: string | null;
+};
+
+export async function getEnrollmentsByEmail(email: string): Promise<Enrollment[]> {
+    try {
+        if (!directus) return [];
+
+        const rows: any = await directus.request(
+            readItems('enrollments', {
+                filter: { email: { _eq: email } },
+                sort: ['-date_created'],
+                limit: 100,
+                fields: ['id', 'email', 'course_id', 'class_id', 'status'],
+            })
+        );
+
+        if (!Array.isArray(rows)) return [];
+
+        const courseIds = Array.from(new Set(rows.map((r: any) => String(r.course_id))));
+
+        const courses: any = await directus.request(
+            readItems('courses', {
+                filter: { id: { _in: courseIds } },
+                fields: ['id', 'title'],
+            })
+        );
+
+        const titleMap = new Map<string, string>();
+        for (const c of courses || []) titleMap.set(String(c.id), String(c.title ?? ''));
+
+        return rows.map((r: any) => ({
+            id: String(r.id),
+            email: String(r.email),
+            course_id: String(r.course_id),
+            class_id: String(r.class_id),
+            status: String(r.status ?? 'active'),
+            course_title: titleMap.get(String(r.course_id)) ?? null,
+        }));
+    } catch (e) {
+        console.error('getEnrollmentsByEmail error:', e);
+        return [];
     }
 }
