@@ -25,8 +25,18 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session;
-            console.log('✅ checkout.session.completed', session.id, session.payment_status);
+            const orderId = session.metadata?.order_id;
+            const kind = session.metadata?.order_kind;
+            console.log('✅ checkout.session.completed', session.id, session.payment_status, { orderId, kind });
             // TODO: aquí guardas orden/enrolas usuario en cursos (Directus)
+            if (kind === 'company' && orderId) {
+                // W2: aquí guardaremos en Directus:
+                // 1) marcar orden pagada
+                // 2) crear invitations por assignment + licencias sin asignar
+                // 3) si employee_due > 0: crear “employee_payment” pendiente
+                // De momento solo log:
+                console.log('🔧 TODO: fulfill corporate order', orderId);
+            }
             break;
         }
         default:

@@ -3,9 +3,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
 export type CartItem = {
-    id: string;            // course id
+    id: string;       // course id
     title: string;
-    price: number;         // en centavos o en unidades; aquí lo dejamos en number simple
     qty: number;
 };
 
@@ -18,7 +17,7 @@ type Action =
     | { type: 'CLEAR' }
     | { type: 'HYDRATE'; state: State };
 
-const STORAGE_KEY = 'ouhnou_cart_v1';
+const STORAGE_KEY = 'ouhnou_cart_v2'; // ← cambiamos versión para limpiar viejo cache
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -28,11 +27,13 @@ function reducer(state: State, action: Action): State {
         case 'ADD': {
             const qty = Math.max(1, action.qty ?? 1);
             const idx = state.items.findIndex((x) => x.id === action.item.id);
+
             if (idx >= 0) {
                 const next = [...state.items];
                 next[idx] = { ...next[idx], qty: next[idx].qty + qty };
                 return { items: next };
             }
+
             return { items: [...state.items, { ...action.item, qty }] };
         }
 
@@ -57,7 +58,7 @@ function reducer(state: State, action: Action): State {
 type CartApi = {
     items: CartItem[];
     count: number;
-    subtotal: number;
+    subtotal: null; // 👈 ya no existe subtotal real
     add: (item: Omit<CartItem, 'qty'>, qty?: number) => void;
     remove: (id: string) => void;
     setQty: (id: string, qty: number) => void;
@@ -69,7 +70,7 @@ const CartContext = createContext<CartApi | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(reducer, { items: [] });
 
-    // Hydrate from localStorage once
+    // Hydrate
     useEffect(() => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
@@ -78,28 +79,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             if (parsed?.items && Array.isArray(parsed.items)) {
                 dispatch({ type: 'HYDRATE', state: parsed });
             }
-        } catch {
-            // ignore
-        }
+        } catch { }
     }, []);
 
-    // Persist on change
+    // Persist
     useEffect(() => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch {
-            // ignore
-        }
+        } catch { }
     }, [state]);
 
     const api = useMemo<CartApi>(() => {
         const count = state.items.reduce((a, x) => a + x.qty, 0);
-        const subtotal = state.items.reduce((a, x) => a + x.qty * x.price, 0);
 
         return {
             items: state.items,
             count,
-            subtotal,
+            subtotal: null, // 👈 Stripe calcula total real
             add: (item, qty) => dispatch({ type: 'ADD', item, qty }),
             remove: (id) => dispatch({ type: 'REMOVE', id }),
             setQty: (id, qty) => dispatch({ type: 'SET_QTY', id, qty }),
@@ -107,7 +103,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         };
     }, [state.items]);
 
-    return <CartContext.Provider value={ api }> { children } </CartContext.Provider>;
+    return <CartContext.Provider value={api}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {

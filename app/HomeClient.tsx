@@ -127,8 +127,7 @@ export default function HomeClient({ page, courses }: { page: PageData; courses:
                                             add(
                                                 {
                                                     id: course.id,
-                                                    title: course.title ?? 'Curso',
-                                                    price: 1999, // 👈 por ahora fijo. Lo ideal es traer course.price desde Directus
+                                                    title: course.title ?? 'Curso'
                                                 },
                                                 1
                                             )
